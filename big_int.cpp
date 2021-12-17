@@ -86,7 +86,6 @@ big_int* big_int_sum(big_int* first, big_int* sec) {
     res->number = (unsigned char*)malloc(res->length);
 
     unsigned char temp = 0;
-    unsigned char comp = 1;
     for (unsigned char i = 0; i < short_num->length; ++i) {
         res->number[i] = count_cell(long_num->number[i], short_num->number[i], &temp);
     }
@@ -95,7 +94,7 @@ big_int* big_int_sum(big_int* first, big_int* sec) {
     }
     if (temp) {
         unsigned char ind = 0;
-        comp = 1;
+        unsigned char comp = 1;
         for (unsigned char k = 0; k < 8; ++k) {
             if (long_num->number[res->length - 1] & comp) ind = k;
             comp <<= 1;
