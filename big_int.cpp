@@ -255,33 +255,108 @@ big_int* big_int_sub(big_int* min, big_int* sub) {
     return res;
 }
 
-big_int* big_int_move(big_int* num) {
+big_int* big_int_move_bit(big_int* num, char dest) {
     big_int* res = (big_int*)malloc(sizeof(big_int));
     res->length = num->length;
     res->sign = num->sign;
     bool prev = 0;
     unsigned char comp = 1;
-    unsigned char ind = 0;
-    for (unsigned char k = 0; k < 8; ++k) {
-        if (num->number[num->length - 1] & comp) ind = k;
-        comp <<= 1;
-    }
-    if (ind == 7) {
-        ++res->length;
-    }
-    res->number = (unsigned char*)malloc(res->length);
-    for (unsigned char i = 0; i < num->length; ++i) {
-        comp = 1;
-        res->number[i] = 0;
+    if (dest == 'l') {
+        unsigned char ind = 0;
         for (unsigned char k = 0; k < 8; ++k) {
-            if (prev) {
-                res->number[i] |= comp;
-            }
-            prev = (num->number[i] & comp);
+            if (num->number[num->length - 1] & comp) ind = k;
             comp <<= 1;
         }
+        if (ind == 7) {
+            ++res->length;
+        }
+        res->number = (unsigned char*)malloc(res->length);
+        for (unsigned char i = 0; i < num->length; ++i) {
+            res->number[i] = 0;
+            for (comp = 1; comp; comp <<= 1 ) {
+                if (prev) {
+                    res->number[i] |= comp;
+                }
+                prev = (num->number[i] & comp);
+            }
+        }
+        if (ind == 7 && prev) res->number[res->length - 1] = 1;
+        return res;
     }
-    if (ind == 7 && prev) res->number[res->length - 1] = 1;
+    else {
+        unsigned char ind = 0;
+        for (unsigned char k = 0; k < 8; ++k) {
+            if (num->number[num->length - 1] & comp) ind = k;
+            comp <<= 1;
+        }
+        if (ind == 0) {
+            --res->length;
+            res->number = (unsigned char*)malloc(res->length);
+            for (unsigned char i = 0; i < res->length; ++i) res->number[i] = num->number[i];
+        }
+        else {
+            res->number = (unsigned char*)malloc(res->length);
+            for (unsigned char i = 0; i < res->length - 1; ++i) res->number[i] = num->number[i];
+            res->number[res->length - 1] = 0;
+            comp = 1;
+            for (unsigned char k = 0; k < ind; ++k) {
+                res->number[res->length - 1] |= (num->number[res->length - 1] & comp);
+                comp <<= 1;
+            }
+        }
+        return res;
+    }
+}
+
+big_int* big_int_move_byte(big_int* num, char dest) {
+    big_int* res = (big_int*)malloc(sizeof(big_int));
+    res->sign = num->sign;
+    unsigned char prev = 0;
+    if (dest == 'r') {
+        res->length = num->length - 1;
+        res->number = (unsigned char*)malloc(res->length);
+        if (res->length == 0) {
+            res->length = 1;
+            res->number[0] = 0;
+            return res;
+        }
+        unsigned char ind = 0;
+        unsigned char comp = 1;
+        for (unsigned char k = 0; k < 8; ++k) {
+            if (num->number[num->length - 1] & comp) ind = k;
+            comp <<= 1;
+        }
+        res->number[res->length - 1] = 0;
+        comp = 1;
+        for (unsigned char k = 0; k <= ind; ++k) {
+            if (num->number[res->length - 1] & comp) res->number[res->length - 1] |= comp;
+            comp <<= 1;
+        }
+        for (unsigned char i = 0; i < res->length - 1; ++i) res->number[i] = num->number[i];
+        return res;
+    }
+    else {
+        res->length = num->length + 1;
+        res->number = (unsigned char*)malloc(res->length);
+        res->number[0] = 0;
+        for (unsigned char i = 0; i < num->length; ++i) res->number[i + 1] = num->number[i];
+        return res;
+    }
+}
+
+big_int* big_int_shift(big_int* num, unsigned char dist, char dest) {
+    big_int* res = (big_int*)malloc(sizeof(big_int));
+    res->sign = num->sign;
+    res->length = 1;
+    res->number = (unsigned char*)malloc(res->length);
+    while (dist >= 8) {
+        big_int_assign(num, big_int_move_byte(num, dest));
+        dist -= 8;
+    }
+    for (unsigned char k = 0; k < dist; ++k) {
+        big_int_assign(num, big_int_move_bit(num, dest));
+    }
+    big_int_assign(res, num);
     return res;
 }
 
@@ -308,7 +383,7 @@ big_int* big_int_multiply(big_int* first, big_int* sec) {
             if (short_num_mult->number[i] & comp) {
                 res = big_int_sum(res, long_num_mult);
             }
-            long_num_mult = big_int_move(long_num_mult);
+            long_num_mult = big_int_move_bit(long_num_mult, 'l');
             comp <<= 1;
         }
     }
