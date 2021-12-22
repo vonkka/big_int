@@ -154,18 +154,9 @@ big_int* big_int_sum(big_int* first, big_int* sec) {
         carry = (temp >> 8);
     }
     if (carry) {
-        unsigned char ind = 0;
-        unsigned char comp = 1;
-        for (unsigned char k = 0; k < 8; ++k) {
-            if (long_num->number[res->length - 1] & comp) ind = k;
-            comp <<= 1;
-        }
-        if (ind == 7) {
-            ++res->length;
-            res->number = (unsigned char*)realloc(res->number, res->length);
-            res->number[res->length - 1] = 1;
-        }
-        else res->number[res->length - 1] |= (1 << (ind + 1));
+        ++res->length;
+        res->number = (unsigned char*)realloc(res->number, res->length);
+        res->number[res->length - 1] = 1;
     }
     return res;
 }
