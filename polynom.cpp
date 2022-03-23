@@ -1,14 +1,17 @@
 #include <stdlib.h>
 #include <iostream>
 #include <string.h>
+#include <ctype.h>
 #include "polynom.h"
 using namespace std;
 
 poly* poly_get_monomial(int coef, int exp) {
 	poly* temp = (poly*)malloc(sizeof(poly));
-	temp->coef = coef;
-	temp->exp = exp;
-	temp->next = NULL;
+	if (temp) {
+		temp->coef = coef;
+		temp->exp = exp;
+		temp->next = NULL;
+	}
 	return temp;
 }
 
@@ -18,41 +21,38 @@ void poly_push(poly** head, int coef, int exp) {
 	*head = temp;
 }
 
+void poly_monom_print(int coeff, int exp) {
+	if (exp) {
+		if (coeff == 1) cout << 'x';
+		else if (coeff == (-1)) cout << '-' << 'x';
+		else cout << coeff << 'x';
+		if (exp != 1) cout << '^' << exp;
+	}
+	else cout << coeff;
+}
+
 void poly_print(poly* head) {
-	if (!(head->coef) && !(head->next)) {
+	if (!(head)) {
 		cout << '0';
 		return;
 	}
-	if (head->exp) {
-		if (head->coef == 1) cout << 'x';
-		else if (head->coef == (-1)) cout << '-' << 'x';
-		else cout << head->coef << 'x';
-		if (head->exp != 1) cout << '^' << head->exp;
-	}
-	else cout << head->coef;
-	head = head->next;
-	if (!head) return;
 
-	while (head->next) {
-		if (head->coef > 0) cout << '+';
-		if (head->exp) {
-			if (head->coef == 1) cout << 'x';
-			else if (head->coef == (-1)) cout << '-' << 'x';
-			else cout << head->coef << 'x';
-			if (head->exp != 1) cout << '^' << head->exp;
+	if (!(head->coef)) {
+		if (!(head->next)) {
+			cout << '0' << '\n';
+			return;
 		}
-		else cout << head->coef;
 		head = head->next;
 	}
+	poly_monom_print(head->coef, head->exp);
+	head = head->next;
 
-	if (head->coef > 0) cout << '+';
-	if (head->exp) {
-		if (head->coef == 1) cout << 'x';
-		else if (head->coef == (-1)) cout << '-' << 'x';
-		else cout << head->coef << 'x';
-		if (head->exp != 1) cout << '^' << head->exp;
+	while (head) {
+		if (head->coef > 0) cout << '+';
+		poly_monom_print(head->coef, head->exp);
+		head = head->next;
 	}
-	else cout << head->coef;
+	cout << '\n';
 	return;
 }
 
@@ -99,69 +99,99 @@ void poly_add(poly** head, int coef, int exp) {
 				prev->next = temp;
 			}
 			else poly_push(head, coef, exp);
-			int a = 5;
 		}
 	}
 	return;
 }
 
 poly* poly_get(const char* str) {
-	poly* result = poly_get_monomial(0,0);
-	char temp_num[10];
-	for (int i = 0; i < 10; ++i) temp_num[i] = '*';
-	int k = 0;
+	poly* result = poly_get_monomial(0, 0);
+	char prev = NULL;
+	int ind = 0;
+	int temp_num = 1;
 	bool x_check = 0;
-	bool sgn = 0;
+	int sgn = 0;
 	int coef_temp = 0;
 	int exp_temp = 0;
-	while(*str != '\0') {
-		if (*str == 'x') {
-			if (temp_num[0] == '*') coef_temp = 1;
-			else coef_temp = atoi(temp_num);
-			if (sgn) coef_temp = -coef_temp;
-			for (int l = 0; l < k; ++l) temp_num[l] = '*';
-			k = 0;
-			x_check = 1;
+
+	while (*str == '-' || *str == '+') {
+		if (!(prev) || prev == '+' || prev == '-') {
+			if (*str == '-') ++sgn;
+			prev = *str;
+			++ind;
+			++str;
 		}
-		else if (*str == '+' || *str == '-') {
-			if (x_check) {
-				if (temp_num[0] == '*') exp_temp = 1;
-				else exp_temp = atoi(temp_num);
-			}
-			else {
-				coef_temp = atoi(temp_num);
-				if (sgn) coef_temp = -coef_temp;
-				exp_temp = 0;
-			}
-			poly_add(&result, coef_temp, exp_temp);
-			for (int l = 0; l < k; ++l) temp_num[l] = '*';
-			k = 0;
-			x_check = 0;
-			if (*str == '-') sgn = 1;
-			else sgn = 0;
-		}
-		else if (*str == '^');
-		else {
-			temp_num[k] = *str;
-			++k;
-		}
-		str++;
+		else throw ind;
 	}
 
-	if (x_check) {
-		if (temp_num[0] == '*') exp_temp = 1;
-		else exp_temp = atoi(temp_num);
+	while (*str != '\n') {
+		if (*str == 'x') {
+			if (!(prev) || (isdigit(prev)) || prev == '+' || prev == '-') {
+				if (sgn & 1) coef_temp = -temp_num;
+				else coef_temp = temp_num;
+				x_check = 1;
+				sgn = 0;
+				temp_num = 1;
+				prev = *str;
+				++str;
+				++ind;
+			} 
+			else throw ind;
+		}
+		else if (*str == '+' || *str == '-') {
+			if (prev == '+' || prev == '-' || (isdigit(prev)) || prev == 'x') {
+				if (x_check) exp_temp = temp_num;
+				else {
+					if (sgn & 1) coef_temp = -temp_num;
+					else coef_temp = temp_num;
+					exp_temp = 0;
+					sgn = 0;
+				}
+				poly_add(&result, coef_temp, exp_temp);
+				x_check = 0;
+				temp_num = 1;
+				while (*str == '-' || *str == '+') {
+					if (*str == '-') ++sgn;
+					prev = *str;
+					++str;
+					++ind;
+				}
+			}
+			else throw ind;
+		}
+		else if (*str == '^') {
+			if (prev == 'x') {
+				prev = *str;
+				++str;
+				++ind;
+			}
+			else throw ind;
+		}
+		else if (isdigit(*str)) {
+			if (prev == '+' || prev == '-' || prev == '^' || !(prev)) {
+				char* endp = NULL;
+				temp_num = strtol(str, &endp, 10);
+				ind += endp - str;
+				str = endp;
+				prev = *(str - 1);
+			}
+			else throw ind;
+		}
+		else throw ind;
+	}
+	if (!ind) {
+		result = NULL;
+		return result;
 	}
 	else {
-		coef_temp = atoi(temp_num);
-		if (sgn) coef_temp = -coef_temp;
-		exp_temp = 0;
+		if (x_check) exp_temp = temp_num;
+		else {
+			if (sgn & 1) coef_temp = -temp_num;
+			else coef_temp = temp_num;
+			exp_temp = 0;
+		}
+		poly_add(&result, coef_temp, exp_temp);
 	}
-	poly_add(&result, coef_temp, exp_temp);
-	for (int l = 0; l < k; ++l) temp_num[l] = 0;
-	k = 0;
-	if (*str == '-') sgn = 1;
-	
 	return result;
 }
 
