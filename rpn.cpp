@@ -7,7 +7,7 @@
 using namespace std;
 
 int ftn_exist(const char* input, char prev) {
-	if (op_priority(prev) == 2 || op_priority(prev) == 3 || prev == '(' || prev == ',') {
+	if (!prev || op_priority(prev) == 2 || op_priority(prev) == 3 || prev == '(' || prev == ',') {
 		++input;
 		if (*input == 'c') {
 			++input;
@@ -134,7 +134,7 @@ rpn* rpn_get(const char* input, int* err_ind) {
 	int opn_bt = 0;
 	int cls_bt = 0;
 
-	while (*input != '\n' && !(*err_ind)) {
+	while (*input != '\n' && (*err_ind == -1)) {
 		if (isdigit(*input)) {
 			if (op_priority(prev) != 4 || prev != ')') {
 				char* endp = NULL;
@@ -177,8 +177,10 @@ rpn* rpn_get(const char* input, int* err_ind) {
 			++ind;
 		}
 		else if (*input == 'g' || *input == 'l') {
-			if (ftn_exist(input, prev) == 1) ops_add(&head, &res, 'g');
-			else ops_add(&head, &res, 'l');
+			int ftn = ftn_exist(input, prev);
+			if (ftn == 1) ops_add(&head, &res, 'g');
+			else if (ftn == 2) ops_add(&head, &res, 'l');
+			else (*err_ind = ind);
 			prev = *input;
 			input += 3;
 			ind += 3;
@@ -224,65 +226,37 @@ void rpn_print(rpn* head) {
 	return;
 }
 
-int rpn_count(rpn* head) {
+int rpn_count(rpn* head, ct** chead) {
 	int res = 0;
 
-	ct* chead = (ct*)malloc(sizeof(ct));
-	chead->num = head->num;
-	chead->next = NULL;
+	(*chead)->num = head->num;
+	(*chead)->next = NULL;
 	head = head->next;
 
-	ct* new_elem = (ct*)malloc(sizeof(ct));
 	while (head) {
+		ct* new_elem = (ct*)malloc(sizeof(ct));
 		if (head->num) {
 			new_elem->num = head->num;
-			new_elem->next = chead;
+			new_elem->next = *chead;
 			*chead = new_elem;
 		}
 		else {
 			int num1; int num2;
-			num1 = chead->num;
-			chead = chead->next;
-			num2 = chead->num;
-			chead = chead->next;
-			if (head->symb == '+') {
-				res += num1 + num2;
-				new_elem->num = num1 + num2;
-				new_elem->next = chead;
-				chead = new_elem;
-			}
-			else if (head->symb == '-') {
-				res += num2 - num1;
-				new_elem->num = num2 - num1;
-				new_elem->next = chead;
-				chead = new_elem;
-			}
-			else if (head->symb == '*') {
-				res += num1 * num2;
-				new_elem->num = num1 * num2;
-				new_elem->next = chead;
-				chead = new_elem;
-			}
-			else if (head->symb == '/') {
-				res += num2 / num1;
-				new_elem->num = num2 / num1;
-				new_elem->next = chead;
-				chead = new_elem;
-			}
-			else if (head->symb == 'g') {
-				res += gcd(num1, num2);
-				new_elem->num = gcd(num1, num2);
-				new_elem->next = chead;
-				chead = new_elem;
-			}
-			else if (head->symb == 'l') {
-				res += lcm(num1, num2);
-				new_elem->num = lcm(num1, num2);
-				new_elem->next = chead;
-				chead = new_elem;
-			}
+			num1 = (*chead)->num;
+			*chead = (*chead)->next;
+			num2 = (*chead)->num;
+			*chead = (*chead)->next;
+			if (head->symb == '+') new_elem->num = num1 + num2;
+			else if (head->symb == '-') new_elem->num = num2 - num1;
+			else if (head->symb == '*') new_elem->num = num1 * num2;
+			else if (head->symb == '/') new_elem->num = num2 / num1;
+			else if (head->symb == 'g') new_elem->num = gcd(num1, num2);
+			else if (head->symb == 'l') new_elem->num = lcm(num1, num2);
+			new_elem->next = *chead;
+			*chead = new_elem;
 		}
 		head = head->next;
 	}
+	res = (*chead)->num;
 	return res;
 }
