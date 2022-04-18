@@ -5,59 +5,70 @@
 #include "help_functions.h"
 using namespace std;
 
-typedef struct list {
+typedef struct grph_node {
 	int num;
-	list* next;
-}list;
+	grph_node* next;
+}grph_node;
 
-typedef struct gr_node {
-	int num;
-	list* adj_list;
-	gr_node* next;
-}gr_node;
+typedef struct list {
+	grph_node* head;
+}list;
 
 typedef struct graph {
 	int count;
-	gr_node* node;
+	list* adj_list;
 }graph;
 
-void graph_free(graph* head) {
-	gr_node* node_ptr = head->node;
-	while (node_ptr) {
-		list* list_ptr = node_ptr->adj_list;
-		while (list_ptr) {
-			list* temp = list_ptr;
-			list_ptr = list_ptr->next;
-			free(temp);
+void graph_free(graph* grph) {
+	if (grph) {
+		for (int i = 0; i < grph->count; ++i) {
+			list* list_ptr = grph[i].adj_list;
+			while (list_ptr->head) {
+				grph_node* node_ptr = list_ptr->head;
+				list_ptr->head = list_ptr->head->next;
+				free(node_ptr);
+			}
+			free(list_ptr);
 		}
-		gr_node* temp = node_ptr;
-		node_ptr = node_ptr->next;
-		free(temp);
+		free(grph);
 	}
-	free(head);
 	return;
 }
 
-void add_node(gr_node** head, int num, list* adj) {
-	gr_node* new_node = (gr_node*)malloc(sizeof(gr_node));
-	new_node->num = num;
-	new_node->adj_list = adj;
-	new_node->next = NULL;
-	if (!(*head)) {
-		*head = new_node;
-		return;
-	}
-	gr_node* cur = *head;
-	while (cur->next) cur = (cur)->next;
-	cur->next = new_node;
-	return;
+grph_node* get_list_elem(grph_node* next, int num) {
+	grph_node* temp = (grph_node*)malloc(sizeof(grph_node));
+	temp->num = num;
+	temp->next = next;;
+	return temp;
 }
 
 void add_adj(list** head, int num) {
-	list* temp = (list*)malloc(sizeof(list));
-	temp->num = num;
-	temp->next = *head;
-	*head = temp;
+	if ((*head)->head->num == -1) {
+		(*head)->head->num = num;
+		(*head)->head->next = NULL;
+		return;
+	}
+
+	grph_node* cur = (*head)->head;
+	grph_node* prev = NULL;
+	while (cur && cur->num < num) {
+		prev = cur;
+		cur= cur->next;
+	}
+	if (!cur) {
+		grph_node* temp = get_list_elem(NULL, num);
+		prev->next = temp;
+		return;
+	}
+	if (cur->num > num) {
+		if (cur == (*head)->head) {
+			grph_node* temp = get_list_elem(cur, num);
+			(*head)->head = temp;
+			return;
+		}
+		grph_node* temp = get_list_elem(cur, num);
+		prev->next = temp;
+	}
 	return;
 }
 
@@ -65,82 +76,92 @@ list* adj_list_create(int cur, int size) {
 	int input = 1;
 	int len = 0;
 	int* adj = str_to_mas_int(&input, &len);
-	list* node_adj = NULL;
-	for (int i = 0; i < len; ++i) {
-		if (0 < adj[i] && adj[i] <= size && adj[i] != cur) add_adj(&node_adj, adj[i]);
+	if (input) {
+		list* node_adj = (list*)malloc(sizeof(grph_node) * size);
+		node_adj->head = get_list_elem(NULL, -1);
+		for (int i = 0; i < len; ++i) {
+			if (0 <= adj[i] && adj[i] < size && adj[i] != cur) add_adj(&node_adj, adj[i]);
+		}
+		return node_adj;
 	}
-	if (node_adj) return node_adj;
-	node_adj = (list*)malloc(sizeof(list));
-	node_adj->num = -1;
-	return node_adj;
+	return NULL;
 }
 
 graph* graph_create(int size) {
-	graph* new_graph = (graph*)malloc(sizeof(graph));
-	gr_node* gr_head = NULL;
-	int num = 1;
-	int emp = 1;
-	while (num <= size) {
-		list* node_adj = adj_list_create(num, size);
-		add_node(&gr_head, num, node_adj);
-		++num;
-		if (node_adj->num != -1) emp = 0;
+	graph* new_graph = (graph*)malloc(sizeof(list) * size);
+	if (size > 0) {
+		new_graph->count = size;
+		for (int num = 0; num < size; ++num) new_graph[num].adj_list = adj_list_create(num, size);
+		return new_graph;
 	}
-	new_graph->node = gr_head;
-	new_graph->count = size;
-	if (!emp) return new_graph;
-	else return NULL;
+	return NULL;
 }
 
-void add_arc(graph* head, int a, int b) {
-	while (head->node->num != a) head->node = head->node->next;
-	add_adj(&head->node->adj_list, b);
-	return;
-}
-
-void add_edge(graph* head, int a, int b) {
-	if (a <= head->count && b <= head->count) {
-		add_arc(head, a, b);
-		add_arc(head, b, a);
+void add_arc(graph* grph, int a, int b) {
+	if (a < grph->count) {
+		list* temp = grph[a].adj_list;
+		add_adj(&temp, b);
 	}
 	return;
 }
 
-void del_arc(graph* head, int a, int b) {
-	while (head->node->num != a) head->node = head->node->next;
-	list* prev = NULL;
-	while (head->node->adj_list->num != b) {
-		prev = head->node->adj_list;
-		head->node->adj_list = head->node->adj_list->next;
-	}
-	prev->next = head->node->adj_list->next;
+void add_edge(graph* grph, int a, int b) {
+	add_arc(grph, a, b);
+	add_arc(grph, b, a);
 	return;
 }
 
-void del_edge(graph* head, int a, int b) {
-	if (a <= head->count && b <= head->count) {
-		del_arc(head, a, b);
-		del_arc(head, b, a);
+void del_arc(graph* grph, int a, int b) {
+	if (a < grph->count && b < grph->count) {
+		grph_node* prev = NULL;
+		list* adj_list_ptr = grph[a].adj_list;
+		grph_node* node_ptr = adj_list_ptr->head;
+		while (node_ptr->num != b) {
+			prev = node_ptr;
+			node_ptr = node_ptr->next;
+		}
+		prev->next = node_ptr->next;
 	}
 	return;
 }
 
-void graph_print(graph* gr) {
-	if (gr) {
+void del_edge(graph* grph, int a, int b) {
+	del_arc(grph, a, b);
+	del_arc(grph, b, a);
+	return;
+}
+
+void graph_print(graph* grph) {
+	if (grph) {
 		cout << '\n';
-		for (int i = 0; i < gr->count; ++i) {
-			cout << gr->node->num << ": ";
-			if (gr->node->adj_list->num == -1) cout << "There is no adjacity" << '\n';
-			else {
-				while (gr->node->adj_list->next) {
-					cout << gr->node->adj_list->num << ", ";
-					gr->node->adj_list = gr->node->adj_list->next;
-				}
-				cout << gr->node->adj_list->num << '\n';
+		for (int i = 0; i < grph->count; ++i) {
+			cout << i << ": ";
+			list* adj_list_ptr = grph[i].adj_list;
+			grph_node* grph_node_ptr = adj_list_ptr->head;
+			while (grph_node_ptr->next) {
+				cout << grph_node_ptr->num << ", ";
+				grph_node_ptr = grph_node_ptr->next;
 			}
-			gr->node = gr->node->next;
+			cout << grph_node_ptr->num << '\n';
 		}
 	}
 	else cout << "Graph is empty" << '\n';
 	return;
 }
+
+//MAIN
+
+while (true) {
+        cout << "Enter the graph size: ";
+        int size;
+        cin >> size;
+        graph* check_gr = graph_create(size);
+        graph_print(check_gr);
+        del_arc(check_gr, 1, 3);
+        graph_print(check_gr);
+        del_arc(check_gr, 3, 1);
+        graph_print(check_gr);
+        add_edge(check_gr, 1, 3);
+        graph_print(check_gr);
+        graph_free(check_gr);
+    }
