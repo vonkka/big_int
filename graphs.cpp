@@ -19,6 +19,13 @@ typedef struct graph {
 	list* adj_list;
 }graph;
 
+#include "graph.h"
+#include <iostream>
+#include <ctype.h>
+#include <stdlib.h>
+#include "help_functions.h"
+using namespace std;
+
 void graph_free(graph* grph) {
 	if (grph) {
 		for (int i = 0; i < grph->count; ++i) {
@@ -42,14 +49,14 @@ grph_node* get_list_elem(grph_node* next, int num) {
 	return temp;
 }
 
-void add_adj(list** head, int num) {
-	if ((*head)->head->num == -1) {
-		(*head)->head->num = num;
-		(*head)->head->next = NULL;
+void add_adj(list** adj_list, int num) {
+	if ((*adj_list)->head->num == -1) {
+		(*adj_list)->head->num = num;
+		(*adj_list)->head->next = NULL;
 		return;
 	}
 
-	grph_node* cur = (*head)->head;
+	grph_node* cur = (*adj_list)->head;
 	grph_node* prev = NULL;
 	while (cur && cur->num < num) {
 		prev = cur;
@@ -61,9 +68,9 @@ void add_adj(list** head, int num) {
 		return;
 	}
 	if (cur->num > num) {
-		if (cur == (*head)->head) {
+		if (cur == (*adj_list)->head) {
 			grph_node* temp = get_list_elem(cur, num);
-			(*head)->head = temp;
+			(*adj_list)->head = temp;
 			return;
 		}
 		grph_node* temp = get_list_elem(cur, num);
@@ -115,12 +122,16 @@ void del_arc(graph* grph, int a, int b) {
 	if (a < grph->count && b < grph->count) {
 		grph_node* prev = NULL;
 		list* adj_list_ptr = grph[a].adj_list;
-		grph_node* node_ptr = adj_list_ptr->head;
-		while (node_ptr->num != b) {
+		grph_node* node_ptr = grph[a].adj_list->head;
+		while (node_ptr && node_ptr->num != b) {
 			prev = node_ptr;
 			node_ptr = node_ptr->next;
 		}
-		prev->next = node_ptr->next;
+		if (prev) {
+			if (node_ptr) prev->next = node_ptr->next;
+			else prev->next = NULL;
+		}
+		else (adj_list_ptr->head = adj_list_ptr->head->next);
 	}
 	return;
 }
@@ -149,19 +160,77 @@ void graph_print(graph* grph) {
 	return;
 }
 
-//MAIN
+graph* edged_graph(graph* grph) {
+	if (grph) {
+		graph* res = (graph*)malloc(sizeof(grph));
+		res->count = grph->count;
+		for (int i = 0; i < grph->count; ++i) {
+			list* temp = (list*)malloc(sizeof(grph_node) * grph->count);
+			list* list_ptr = grph[i].adj_list;
+			grph_node* node = list_ptr->head;
+			temp->head = get_list_elem(NULL, -1);
+			while (node) {
+				add_adj(&temp, node->num);
+				node = node->next;
+			}
+			res[i].adj_list = temp;
+		}
+		for (int i = 0; i < grph->count; ++i) {
+			list* list_ptr = res[i].adj_list;
+			grph_node* node = list_ptr->head;
+			while (node) {
+				add_edge(res, i, node->num);
+				node = node->next;
+			}
+		}
+		return res;
+	}
+	return NULL;
+}
+//
+//list* nodes_queue(graph* grph) {
+//	list* res = (list*)malloc(sizeof(grph_node) * grph->count);
+//	for (int i = 0; i < grph->count; ++i) {
+//
+//	}
+//}
 
-while (true) {
-        cout << "Enter the graph size: ";
-        int size;
-        cin >> size;
-        graph* check_gr = graph_create(size);
-        graph_print(check_gr);
-        del_arc(check_gr, 1, 3);
-        graph_print(check_gr);
-        del_arc(check_gr, 3, 1);
-        graph_print(check_gr);
-        add_edge(check_gr, 1, 3);
-        graph_print(check_gr);
-        graph_free(check_gr);
-    }
+grph_node* q_pop(list** q) {
+	grph_node* res = (*q)->head;
+	(*q)->head = (*q)->head->next;
+	return res;
+}
+
+void q_push(list** queue, grph_node* node) {
+	list* cur = *queue;
+	while (cur->head->next) cur->head = cur->head->next;
+	cur->head = node;
+}
+
+int bfs_bpt_check(graph* grph) {
+	int res = 1;
+	if (grph) {
+		graph* edged = edged_graph(grph);
+		int* node_color = (int*)malloc(sizeof(int) * grph->count);
+		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
+		list* q = (list*)malloc(sizeof(grph_node) * edged->count);
+		q->head = get_list_elem(NULL, 0);
+		node_color[0] = 1;
+		while (q->head) {
+			list* adj_list_ptr = edged[q->head->num].adj_list;
+			grph_node* node_ptr = adj_list_ptr->head;
+			if (node_ptr->num != -1) {
+				while (node_ptr) {
+					if (node_color[node_ptr->num] == -1) node_color[node_ptr->num] = 1 - node_color[q->head->num];
+					if (node_color[node_ptr->num] == -1) q_push(&q, node_ptr);
+					node_ptr = node_ptr->next;
+				}
+				if (node_color[q->head->num] == node_color[node_ptr->num]) {
+					res = 0;
+					break;
+				}
+			}
+		}
+	}
+	return res;
+}
