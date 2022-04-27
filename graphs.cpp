@@ -187,24 +187,34 @@ graph* edged_graph(graph* grph) {
 	}
 	return NULL;
 }
-//
-//list* nodes_queue(graph* grph) {
-//	list* res = (list*)malloc(sizeof(grph_node) * grph->count);
-//	for (int i = 0; i < grph->count; ++i) {
-//
-//	}
-//}
 
-grph_node* q_pop(list** q) {
-	grph_node* res = (*q)->head;
-	(*q)->head = (*q)->head->next;
-	return res;
+que* q_elem_add(int num, que* ptr) {
+	que* temp = (que*)malloc(sizeof(que*));
+	temp->num = num;
+	temp->next = ptr;
+	return temp;
 }
 
-void q_push(list** queue, grph_node* node) {
-	list* cur = *queue;
-	while (cur->head->next) cur->head = cur->head->next;
-	cur->head = node;
+void q_pop(que** q) {
+	(*q) = (*q)->next;
+	if (!(*q)) {
+		que* temp = (que*)malloc(sizeof(que));
+		temp->num = -1;
+		temp->next = NULL;
+		*q = temp;
+	}
+	return;
+}
+
+void q_push(que** q, int num) {
+	if ((*q)->num == -1) {
+		(*q)->num = num;
+		(*q)->next = NULL;
+		return;
+	}
+	que* cur = *q;
+	while (cur->next) cur = cur->next;
+	cur->next = q_elem_add(num, NULL);
 }
 
 int bfs_bpt_check(graph* grph) {
@@ -213,23 +223,26 @@ int bfs_bpt_check(graph* grph) {
 		graph* edged = edged_graph(grph);
 		int* node_color = (int*)malloc(sizeof(int) * grph->count);
 		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
-		list* q = (list*)malloc(sizeof(grph_node) * edged->count);
-		q->head = get_list_elem(NULL, 0);
+		que* q = (que*)malloc(sizeof(que) * edged->count);
+		q->num = -1;
+		q_push(&q, 0);
 		node_color[0] = 1;
-		while (q->head) {
-			list* adj_list_ptr = edged[q->head->num].adj_list;
-			grph_node* node_ptr = adj_list_ptr->head;
+		while (q->num != -1) {
+			grph_node* node_ptr = edged->adj_list[q->num].head;
 			if (node_ptr->num != -1) {
 				while (node_ptr) {
-					if (node_color[node_ptr->num] == -1) node_color[node_ptr->num] = 1 - node_color[q->head->num];
-					if (node_color[node_ptr->num] == -1) q_push(&q, node_ptr);
+					if (node_color[node_ptr->num] == -1) {
+						q_push(&q, node_ptr->num);
+						node_color[node_ptr->num] = 1 - node_color[q->num];
+					}
+					if (node_color[q->num] == node_color[node_ptr->num]) {
+						res = 0;
+						break;
+					}
 					node_ptr = node_ptr->next;
 				}
-				if (node_color[q->head->num] == node_color[node_ptr->num]) {
-					res = 0;
-					break;
-				}
 			}
+			q_pop(&q);
 		}
 	}
 	return res;
