@@ -88,10 +88,16 @@ void del_arc(graph* grph, int a, int b) {
 			node_ptr = node_ptr->next;
 		}
 		if (prev) {
+			grph_node* temp = prev->next;
 			if (node_ptr) prev->next = node_ptr->next;
 			else prev->next = NULL;
+			free(temp);
 		}
-		else (grph->adj_list[a].head = NULL);
+		else {
+			grph_node* temp = grph->adj_list[a].head;
+			(grph->adj_list[a].head = NULL);
+			free(temp);
+		}
 	}
 	return;
 }
@@ -151,14 +157,18 @@ graph* edged_graph(graph* grph) {
 }
 
 que* q_elem_add(int num, que* ptr) {
-	que* temp = (que*)malloc(sizeof(que*));
+	que* temp = (que*)malloc(sizeof(que));
 	temp->num = num;
 	temp->next = ptr;
 	return temp;
 }
 
 void q_pop(que** q) {
-	(*q) = (*q)->next;
+	if (*q) {
+		que* temp = (*q);
+		(*q) = temp->next;
+		free(temp);
+	}
 	return;
 }
 
@@ -185,23 +195,28 @@ int bfs_bpt_check(graph* grph) {
 		graph* edged = edged_graph(grph);
 		int* node_color = (int*)malloc(sizeof(int) * grph->count);
 		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
-		que* q = NULL;
-		q_push(&q, 3);
-		node_color[3] = 1;
-		while (q) {
-			grph_node* node_ptr = edged->adj_list[q->num].head;
-			while (node_ptr) {
-				if (node_color[node_ptr->num] == -1) {
-					q_push(&q, node_ptr->num);
-					node_color[node_ptr->num] = 1 - node_color[q->num];
+		
+		for (int i = 0; i < edged->count; ++i) {
+			if (node_color[i] == -1) {
+				que* q = NULL;
+				q_push(&q, i);
+				node_color[i] = 1;
+				while (q) {
+					grph_node* node_ptr = edged->adj_list[q->num].head;
+					while (node_ptr) {
+						if (node_color[node_ptr->num] == -1) {
+							q_push(&q, node_ptr->num);
+							node_color[node_ptr->num] = 1 - node_color[q->num];
+						}
+						if (node_color[q->num] == node_color[node_ptr->num]) {
+							res = 0;
+							break;
+						}
+						node_ptr = node_ptr->next;
+					}
+					q_pop(&q);
 				}
-				if (node_color[q->num] == node_color[node_ptr->num]) {
-					res = 0;
-					break;
-				}
-				node_ptr = node_ptr->next;
 			}
-			q_pop(&q);
 		}
 	}
 	return res;
@@ -221,15 +236,22 @@ int dfs_bpt_check(graph* grph) {
 		q_tohead(&q_temp, 0);
 
 		while (q) {
+			temp = q->num;
 			grph_node* node_ptr = NULL;
-			temp = 0;
 			grph_node* cur = edged->adj_list[temp].head;
 			while (cur && node_color[cur->num] != -1) cur = cur->next;
-			if (!cur) {
-				q_pop(&q);
-				break;
+			if (cur && node_color[cur->num] == -1) {
+				node_ptr = cur;
+				q_tohead(&q_temp, temp);
 			}
-			if (node_color[cur->num] == -1) node_ptr = cur;
+			else {
+				q_pop(&q);
+				if (q_temp) {
+					q_push(&q, q_temp->num);
+					q_pop(&q_temp);
+				}
+				continue;
+			}
 
 			while (node_ptr) {
 				if (node_color[node_ptr->num] == -1) node_color[node_ptr->num] = 1 - node_color[temp];
@@ -244,6 +266,7 @@ int dfs_bpt_check(graph* grph) {
 					node_ptr = cur;
 					q_tohead(&q_temp, temp);
 				}
+				else node_ptr = NULL;
 			}
 			q_pop(&q);
 			if (!q && q_temp) {
