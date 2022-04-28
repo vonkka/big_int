@@ -173,6 +173,12 @@ void q_push(que** q, int num) {
 	return;
 }
 
+void q_tohead(que** q, int num) {
+	que* temp = q_elem_add(num, *q);
+	*q = temp;
+	return;
+}
+
 int bfs_bpt_check(graph* grph) {
 	int res = 1;
 	if (grph) {
@@ -180,8 +186,8 @@ int bfs_bpt_check(graph* grph) {
 		int* node_color = (int*)malloc(sizeof(int) * grph->count);
 		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
 		que* q = NULL;
-		q_push(&q, 0);
-		node_color[0] = 1;
+		q_push(&q, 3);
+		node_color[3] = 1;
 		while (q) {
 			grph_node* node_ptr = edged->adj_list[q->num].head;
 			while (node_ptr) {
@@ -196,6 +202,43 @@ int bfs_bpt_check(graph* grph) {
 				node_ptr = node_ptr->next;
 			}
 			q_pop(&q);
+		}
+	}
+	return res;
+}
+
+int dfs_bpt_check(graph* grph) {
+	int res = 1;
+	if (grph) {
+		graph* edged = edged_graph(grph);
+		int* node_color = (int*)malloc(sizeof(int) * grph->count);
+		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
+		que* q = NULL;
+		que* q_temp = NULL;
+		q_push(&q, 0);
+		node_color[0] = 1;
+		while (q) {
+			int temp = q->num;
+			grph_node* node_ptr = edged->adj_list[temp].head;
+			q_tohead(&q_temp, temp);
+			while (node_ptr) {
+				if (node_color[node_ptr->num] == -1) node_color[node_ptr->num] = 1 - node_color[temp];
+				if (node_color[temp] == node_color[node_ptr->num]) {
+					res = 0;
+					break;
+				}
+				temp = node_ptr->num;
+				q_tohead(&q_temp, temp);
+				temp = node_ptr->num;
+				grph_node* cur = edged->adj_list[temp].head;
+				while (cur && node_color[cur->num] != -1) cur = cur->next;
+				if (node_color[cur->num] == -1) node_ptr = cur;
+			}
+			q_pop(&q);
+			if (!q && q_temp) {
+				q_push(&q, q_temp->num);
+				q_pop(&q_temp);
+			}
 		}
 	}
 	return res;
