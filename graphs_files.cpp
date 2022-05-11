@@ -1,18 +1,20 @@
-cout << "Enter the graph size: ";
-    int size;
-    cin >> size;
-    graph* check_gr = graph_create(size);
-    for (int i = 0; i < size; ++i) {
-        int input = 1; int len = 0;
-        int* adj = str_to_mas_int(&input, &len);
-        for (int k = 0; k < len; ++k) {
-            if (i != adj[k]) add_adj(&check_gr->adj_list[i].head, adj[k]);
-        }
-    }
-    if (check_gr) {
-        graph_print(check_gr);
-        graph_out(check_gr, "C:/Users/1/Desktop/Programming/graph_out.txt");
-    }
+// main_sdfite
+
+//cout << "Enter the graph size: ";
+//    int size;
+//    cin >> size;
+//    graph* check_gr = graph_create(size);
+//    for (int i = 0; i < size; ++i) {
+//        int input = 1; int len = 0;
+//        int* adj = str_to_mas_int(&input, &len);
+//        for (int k = 0; k < len; ++k) {
+//            if (i != adj[k]) add_adj(&check_gr->adj_list[i].head, adj[k]);
+//       }
+//    }
+//    if (check_gr) {
+//        graph_print(check_gr);
+//        graph_out(check_gr, "C:/Users/1/Desktop/Programming/graph_out.txt");
+//    }
 
 int graph_in(const char* filename) {
 	FILE* myfile;
