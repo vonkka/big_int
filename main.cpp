@@ -77,3 +77,37 @@ int main()
         q_free(q);
     }
 }
+
+
+
+// Topology sorting
+
+   while (true) {
+        cout << "Enter the graph size: ";
+        int size;
+        cin >> size;
+        graph* check_gr = graph_create(size);
+        for (int i = 0; i < size; ++i) {
+            int input = 1; int len = 0;
+            int* adj = str_to_mas_int(&input, &len);
+            for (int k = 0; k < len; ++k) {
+                if (i != adj[k]) add_adj(&check_gr->adj_list[i].head, adj[k]);
+            }
+        }
+        graph_print(check_gr);
+
+        que* q = topology_sort_dfs(check_gr);
+        if (q) {
+                cout << '\n' << "Sorted list: ";
+                while (q->next) {
+                    que* temp = q;
+                    cout << q->num << ", ";
+                    q = q->next;
+                    free(temp);
+                }
+                cout << q->num << '\n';
+                cout << '\n';
+            }
+        else cout << '\n' << "There is cycle" << '\n' << '\n';
+        q_free(q);
+    }
