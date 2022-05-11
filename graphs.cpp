@@ -8,15 +8,15 @@ using namespace std;
 void graph_free(graph* grph) {
 	if (grph) {
 		for (int i = 0; i < grph->count; ++i) {
-			list* list_ptr = grph[i].adj_list;
-			while (list_ptr->head) {
-				grph_node* node_ptr = list_ptr->head;
-				list_ptr->head = list_ptr->head->next;
-				free(node_ptr);
+			grph_node* node_ptr = grph->adj_list[i].head;
+			while (node_ptr) {
+				grph_node* node_ptr1 = node_ptr;
+				node_ptr = node_ptr->next;
+				free(node_ptr1);
 			}
-			free(list_ptr);
 		}
-		free(grph);
+		free(grph->adj_list);
+		//free(grph);
 	}
 	return;
 }
@@ -95,7 +95,7 @@ void del_arc(graph* grph, int a, int b) {
 		}
 		else {
 			grph_node* temp = grph->adj_list[a].head;
-			(grph->adj_list[a].head = NULL);
+			grph->adj_list[a].head = NULL;
 			free(temp);
 		}
 	}
@@ -189,6 +189,41 @@ void q_tohead(que** q, int num) {
 	return;
 }
 
+int elem_in_q(que* q, int num) {
+	int k = 1;
+	while (q) {
+		if (q->num == num) return k;
+		++k;
+		q = q->next;
+	}
+	return 0;
+}
+
+void q_insert(que** q, int in, int place) {
+	que* cur = (*q);
+	que* prev = NULL;
+	while (cur) {
+		if ((cur)->num == place) break;
+		prev = cur;
+		cur = cur->next;
+	}
+	if (prev) {
+		prev->next = q_elem_add(in, cur);
+		return;
+	}
+	q_tohead(q, in);
+	return;
+}
+
+void q_free(que* q) {
+	while (q) {
+		que* temp = q;
+		q = q->next;
+		free(temp);
+	}
+	return;
+}
+
 int bfs_bpt_check(graph* grph) {
 	int res = 1;
 	if (grph) {
@@ -222,58 +257,100 @@ int bfs_bpt_check(graph* grph) {
 	return res;
 }
 
+int dfs_step(graph* edged, int num, int** node_color, int prev) {
+	if ((*node_color)[num] == -1) (*node_color)[num] = 1 - prev;
+	grph_node* cur = edged->adj_list[num].head;
+	while (cur && (*node_color)[cur->num] != -1) cur = cur->next;
+	while (cur) {
+		dfs_step(edged, cur->num, node_color, (*node_color)[num]);
+		while (cur && (*node_color)[cur->num] != -1) cur = cur->next;
+	}
+
+	cur = edged->adj_list[num].head;
+	while (cur) {
+		if ((*node_color)[num] == (*node_color)[cur->num]) return 0;
+		cur = cur->next;
+	}
+	return 1;
+}
+
 int dfs_bpt_check(graph* grph) {
-	int res = 1;
+	int res = 0;
 	if (grph) {
+		res = 1;
 		graph* edged = edged_graph(grph);
 		int* node_color = (int*)malloc(sizeof(int) * grph->count);
 		for (int i = 0; i < edged->count; ++i) node_color[i] = -1;
-		que* q = NULL;
-		que* q_temp = NULL;
-		q_push(&q, 0);
-		node_color[0] = 1;
-		int temp = 0;
-		q_tohead(&q_temp, 0);
 
-		while (q) {
-			temp = q->num;
-			grph_node* node_ptr = NULL;
-			grph_node* cur = edged->adj_list[temp].head;
-			while (cur && node_color[cur->num] != -1) cur = cur->next;
-			if (cur && node_color[cur->num] == -1) {
-				node_ptr = cur;
-				q_tohead(&q_temp, temp);
-			}
-			else {
-				q_pop(&q);
-				if (q_temp) {
-					q_push(&q, q_temp->num);
-					q_pop(&q_temp);
-				}
-				continue;
-			}
-
-			while (node_ptr) {
-				if (node_color[node_ptr->num] == -1) node_color[node_ptr->num] = 1 - node_color[temp];
-				if (node_color[temp] == node_color[node_ptr->num]) {
+		for (int i = 0; i < edged->count; ++i) {
+			if (node_color[i] == -1) {
+				if (!dfs_step(edged, i, &node_color, 0)) {
 					res = 0;
 					break;
 				}
-				temp = node_ptr->num;
-				grph_node* cur = edged->adj_list[temp].head;
-				while (cur && node_color[cur->num] != -1) cur = cur->next;
-				if (cur && node_color[cur->num] == -1) {
-					node_ptr = cur;
-					q_tohead(&q_temp, temp);
-				}
-				else node_ptr = NULL;
-			}
-			q_pop(&q);
-			if (!q && q_temp) {
-				q_push(&q, q_temp->num);
-				q_pop(&q_temp);
 			}
 		}
+		free(node_color);
+		graph_free(edged);
 	}
 	return res;
+}
+
+int sort_step(graph* grph, que** q, que** st, int num) {
+	grph_node* cur = grph->adj_list[num].head;
+	while (cur && elem_in_q(*q, cur->num)) {
+		if (elem_in_q(*st, cur->num)) return 0;
+		cur = cur->next;
+	}
+	while (cur) {
+		q_push(q, cur->num);
+		q_tohead(st, cur->num);
+		if (sort_step(grph, q, st, cur->num)) {
+			while (cur && elem_in_q(*q, cur->num)) {
+				cur = cur->next;
+				if (cur && elem_in_q(*st, cur->num)) return 0;
+			}
+		}
+		else return 0;
+	}
+	return 1;
+}
+
+que* topology_sort_dfs(graph* grph) {
+	if (grph) {
+		que* q = NULL;
+		for (int i = 0; i < grph->count; ++i) {
+			if (!elem_in_q(q, i)) {
+				que* st = NULL;
+				q_tohead(&st, i);
+				grph_node* node_ptr = grph->adj_list[i].head;
+				if (node_ptr) {
+					if (elem_in_q(q, node_ptr->num)) q_insert(&q, i, node_ptr->num);
+					else {
+						q_push(&q, i);
+						q_push(&q, node_ptr->num);
+						q_tohead(&st, node_ptr->num);
+						if (!sort_step(grph, &q, &st, node_ptr->num)) return NULL;
+					}
+					q_free(st);
+					st = NULL;
+					q_tohead(&st, i);
+					node_ptr = node_ptr->next;
+				}
+				while (node_ptr) {
+					if (!elem_in_q(q, node_ptr->num)) {
+						q_push(&q, node_ptr->num);
+						q_tohead(&st, node_ptr->num);
+						if (!sort_step(grph, &q, &st, node_ptr->num)) return NULL;
+					}
+					q_free(st);
+					st = NULL;
+					q_tohead(&st, i);
+					node_ptr = node_ptr->next;
+				}
+			}
+		}
+		if (q) return q; 
+	}
+	return 0;
 }
