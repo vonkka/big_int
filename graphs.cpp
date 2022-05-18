@@ -296,61 +296,42 @@ int dfs_bpt_check(graph* grph) {
 	return res;
 }
 
-int sort_step(graph* grph, que** q, que** st, int num) {
-	grph_node* cur = grph->adj_list[num].head;
-	while (cur && elem_in_q(*q, cur->num)) {
-		if (elem_in_q(*st, cur->num)) return 0;
-		cur = cur->next;
-	}
-	while (cur) {
-		q_push(q, cur->num);
-		q_tohead(st, cur->num);
-		if (sort_step(grph, q, st, cur->num)) {
-			while (cur && elem_in_q(*q, cur->num)) {
-				cur = cur->next;
-				if (cur && elem_in_q(*st, cur->num)) return 0;
-			}
+int top_sort_step(graph* g, que** way, int** res, int* pos, int cur) {
+	grph_node* adj = g->adj_list[cur].head;
+	while (adj) {
+		if ((*res)[adj->num] == -1) {
+			if (elem_in_q(*way, adj->num)) return NULL;
+			q_tohead(way, adj->num);
+			if (!top_sort_step(g, way, res, pos, adj->num)) return NULL;
+			q_to_elem(way, cur);
 		}
-		else return 0;
+		else {
+			if (elem_in_q(*way, adj->num)) return NULL;
+			adj = adj->next;
+		}
 	}
+	(*res)[cur] = *pos;
+	--(*pos);
 	return 1;
 }
 
-que* topology_sort_dfs(graph* grph) {
-	if (grph) {
-		que* q = NULL;
-		for (int i = 0; i < grph->count; ++i) {
-			if (!elem_in_q(q, i)) {
-				que* st = NULL;
-				q_tohead(&st, i);
-				grph_node* node_ptr = grph->adj_list[i].head;
-				if (node_ptr) {
-					if (elem_in_q(q, node_ptr->num)) q_insert(&q, i, node_ptr->num);
-					else {
-						q_push(&q, i);
-						q_push(&q, node_ptr->num);
-						q_tohead(&st, node_ptr->num);
-						if (!sort_step(grph, &q, &st, node_ptr->num)) return NULL;
-					}
-					q_free(st);
-					st = NULL;
-					q_tohead(&st, i);
-					node_ptr = node_ptr->next;
+int* topology_sort_dfs(graph* g) {
+	int* res = NULL;
+	if (g) {
+		res = (int*)malloc(sizeof(int) * g->count);
+		int pos = g->count - 1;
+		for (int i = 0; i < g->count; ++i) res[i] = -1;
+		for (int i = 0; i < g->count; ++i) {
+			if (res[i] == -1) {
+				que* way = NULL;
+				q_tohead(&way, i);
+				if (!top_sort_step(g, &way, &res, &pos, i)) {
+					res = NULL;
+					break;
 				}
-				while (node_ptr) {
-					if (!elem_in_q(q, node_ptr->num)) {
-						q_push(&q, node_ptr->num);
-						q_tohead(&st, node_ptr->num);
-						if (!sort_step(grph, &q, &st, node_ptr->num)) return NULL;
-					}
-					q_free(st);
-					st = NULL;
-					q_tohead(&st, i);
-					node_ptr = node_ptr->next;
-				}
+				q_to_elem(&way, i);
 			}
 		}
-		if (q) return q; 
 	}
-	return 0;
+	return res;
 }
