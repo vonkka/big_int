@@ -13,7 +13,7 @@
 //    }
 //    if (check_gr) {
 //        graph_print(check_gr);
-//        graph_out(check_gr, "C:/Users/1/Desktop/Programming/graph_out.txt");
+//        graph_out(check_gr, "your_path");
 //    }
 
 int graph_in(const char* filename) {
