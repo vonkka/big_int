@@ -85,3 +85,55 @@ void scc_2dfs(graph* g) {
 		cout << '\n';
 	}
 }
+
+//Doesn't work yet.............................
+
+void scc_1dfs_step(graph* g, que** path, int** comps, int* comp_num, int cur) {
+	grph_node* adj = g->adj_list[cur].head;
+	while (adj) {
+		if ((*comps)[adj->num] == -1) {
+			if (elem_in_q(*path, adj->num)) {
+				que* temp = *path;
+				while (temp->num != adj->num) {
+					(*comps)[temp->num] = *comp_num;
+					temp = temp->next;
+				}
+				(*comps)[temp->num] = *comp_num;
+			}
+			else q_tohead(path, adj->num);
+			scc_1dfs_step(g, path, comps, comp_num, adj->num);
+			q_to_elem(path, cur);
+		}
+		else if (elem_in_q(*path, adj->num)) {
+			for (int i = 0; i < g->count; ++i) {
+				if ((*comps)[i] == (*comps)[adj->num]) (*comps)[i] = *comp_num;
+			}
+			(*comps)[cur] = *comp_num;
+		}
+		adj = adj->next;
+	}
+	if ((*comps)[cur] == -1) {
+		(*comps)[cur] = *comp_num;
+		++(*comp_num);
+	}
+	else ++(*comp_num);
+	return;
+}
+
+int* scc_1dfs(graph* g) {
+	int* comps = NULL;
+	if (g) {
+		int comp_num = 0;
+		comps = (int*)malloc(sizeof(int) * g->count);
+		for (int i = 0; i < g->count; ++i) comps[i] = -1;
+		for (int i = 0; i < g->count; ++i) {
+			if (comps[i] == -1) {
+				que* path = NULL;
+				q_tohead(&path, i);
+				scc_1dfs_step(g, &path, &comps, &comp_num, i);
+				q_to_elem(&path, i);
+			}
+		}
+	}
+	return comps;
+}
