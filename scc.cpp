@@ -86,8 +86,6 @@ void scc_2dfs(graph* g) {
 	}
 }
 
-//Doesn't work yet.............................
-
 void scc_1dfs_step(graph* g, que** path, int** comps, int* comp_num, int cur) {
 	grph_node* adj = g->adj_list[cur].head;
 	while (adj) {
@@ -105,10 +103,13 @@ void scc_1dfs_step(graph* g, que** path, int** comps, int* comp_num, int cur) {
 			q_to_elem(path, cur);
 		}
 		else if (elem_in_q(*path, adj->num)) {
+			int temp = (*comps)[adj->num];
 			for (int i = 0; i < g->count; ++i) {
-				if ((*comps)[i] == (*comps)[adj->num]) (*comps)[i] = *comp_num;
+				if ((*comps)[i] == temp) {
+					(*comps)[i] = *comp_num;
+				}
 			}
-			(*comps)[cur] = *comp_num;
+			(*comps)[adj->num] = *comp_num;
 		}
 		adj = adj->next;
 	}
