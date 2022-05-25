@@ -296,19 +296,17 @@ int dfs_bpt_check(graph* grph) {
 	return res;
 }
 
-int top_sort_step(graph* g, que** way, int** res, int* pos, int cur) {
+int top_sort_step(graph* g, que** path, int** res, int* pos, int cur) {
 	grph_node* adj = g->adj_list[cur].head;
 	while (adj) {
 		if ((*res)[adj->num] == -1) {
-			if (elem_in_q(*way, adj->num)) return NULL;
-			q_tohead(way, adj->num);
-			if (!top_sort_step(g, way, res, pos, adj->num)) return NULL;
-			q_to_elem(way, cur);
+			if (elem_in_q(*path, adj->num)) return NULL;
+			q_tohead(path, adj->num);
+			if (!top_sort_step(g, path, res, pos, adj->num)) return NULL;
+			q_to_elem(path, cur);
 		}
-		else {
-			if (elem_in_q(*way, adj->num)) return NULL;
-			adj = adj->next;
-		}
+		else if (elem_in_q(*path, adj->num)) return NULL;
+		adj = adj->next;
 	}
 	(*res)[cur] = *pos;
 	--(*pos);
@@ -326,10 +324,11 @@ int* topology_sort_dfs(graph* g) {
 				que* way = NULL;
 				q_tohead(&way, i);
 				if (!top_sort_step(g, &way, &res, &pos, i)) {
+					free(res);
 					res = NULL;
 					break;
 				}
-				q_to_elem(&way, i);
+				q_free(way);
 			}
 		}
 	}
@@ -402,22 +401,146 @@ int* dfs2_gr(graph* g, int* order) {
 	return sorted_f;
 }
 
-void scc_2dfs(graph* g) {
+int* scc_2dfs(graph* g) {
+	int* comps = NULL;
 	if (g) {
 		int* sorted_f = dfs2_gr(g, NULL);
 		int* sorted_s = dfs2_gr(graph_transpose(g), sorted_f);
-		int i = 0; int k = 0;
-		while (i < g->count) {
-			if (sorted_f[i] == sorted_s[g->count - k - 1]) {
-				cout << sorted_s[g->count - k - 1] << '\n';
-				++k;
-				i = k;
-			}
-			else {
-				cout << sorted_s[g->count - k - 1] << ", ";
+		comps = (int*)malloc(sizeof(int) * g->count);
+		for (int i = 0; i < g->count; ++i) comps[i] = -1;
+		int k = 0;
+		for (int i = 0; i < g->count; ++i) {
+			if (comps[sorted_f[i]] == -1) {
+				while (sorted_f[i] != sorted_s[g->count - k - 1]) {
+					comps[sorted_s[g->count - k - 1]] = i;
+					++k;
+				}
+				comps[sorted_s[g->count - k - 1]] = i;
 				++k;
 			}
 		}
-		cout << '\n';
 	}
+	return comps;
+}
+
+void scc_1dfs_step(graph* g, que** path, int** comps, int* comp_num, int cur) {
+	grph_node* adj = g->adj_list[cur].head;
+	while (adj) {
+		if ((*comps)[adj->num] == -1) {
+			if (elem_in_q(*path, adj->num)) {
+				que* temp = *path;
+				while (temp->num != adj->num) {
+					(*comps)[temp->num] = *comp_num;
+					temp = temp->next;
+				}
+				(*comps)[temp->num] = *comp_num;
+			}
+			else {
+				q_tohead(path, adj->num);
+				scc_1dfs_step(g, path, comps, comp_num, adj->num);
+				q_to_elem(path, cur);
+			}
+		}
+		else if (elem_in_q(*path, adj->num)) {
+			int temp = (*comps)[adj->num];
+			for (int i = 0; i < g->count; ++i) {
+				if ((*comps)[i] == temp) (*comps)[i] = *comp_num;
+			}
+			(*comps)[adj->num] = *comp_num;
+		}
+		adj = adj->next;
+	}
+	if ((*comps)[cur] == -1) (*comps)[cur] = *comp_num;
+	++(*comp_num);
+	return;
+}
+
+int* scc_1dfs(graph* g) {
+	int* comps = NULL;
+	if (g) {
+		int comp_num = 0;
+		comps = (int*)malloc(sizeof(int) * g->count);
+		for (int i = 0; i < g->count; ++i) comps[i] = -1;
+		for (int i = 0; i < g->count; ++i) {
+			if (comps[i] == -1) {
+				que* path = NULL;
+				q_tohead(&path, i);
+				scc_1dfs_step(g, &path, &comps, &comp_num, i);
+				q_to_elem(&path, i);
+			}
+		}
+	}
+	return comps;
+}
+
+graph* sat_gr_create(char* str, int size) {
+	graph* g = graph_create(size);
+	g->count = size;
+	bool br = 0, neg = 0;
+	char prev = NULL;
+	int temp = 0;
+	int num1 = -1, num2 = -1;
+	while (*str != '\n') {
+		if (isdigit(*str)) {
+			if (prev == 'n') {
+				char* endp = NULL;
+				temp = strtol(str, &endp, 10);
+				if (neg) temp = size - temp - 1;
+				if (num1 == -1) num1 = temp;
+				else num2 = temp;
+				if (num1 != -1 && num2 != -1) {
+					add_adj(&(g->adj_list[size - num1 - 1].head), num2);
+					add_adj(&(g->adj_list[size - num2 - 1].head), num1);
+				}
+				str = endp;
+				prev = *(str - 1);
+				neg = 0;
+			}
+			else return NULL;
+		}
+		else {
+			if (*str == '(') {
+				if (!prev || prev == '&' || prev == ' ') br = 1;
+				else return NULL;
+			}
+			else if (*str == ')') {
+				if ((isdigit(prev) || prev == ' ') && br) {
+					num1 = -1;
+					num2 = -1;
+					br = 0;
+				}
+				else return NULL;
+			}
+			else if (*str == '!') {
+				if (prev == '(' || prev == '|') neg = 1;
+				else return NULL;
+			}
+			else if (*str == 'n') {
+				if (!(prev == '(' || prev == '|' || prev == ' ' || prev == '!')) return NULL;
+			}
+			else if (*str == '|') {
+				if (!(isdigit(prev) || prev == ' ')) return NULL;
+			}
+			else if (*str == '&') {
+				if (!(prev == ')' || prev == ' ')) return NULL;
+			}
+			else if (*str == ' ');
+			else return NULL;
+			prev = *str;
+			++str;
+		}
+	}
+	return g;
+}
+
+int* sat2(char* str, int var) {
+	graph* g = sat_gr_create(str, var * 2);
+	int* res = (int*)malloc(sizeof(var));
+	int* comps = scc_2dfs(g);
+	for (int i = 0; i < var; ++i) {
+		if (comps[i] == comps[g->count - i - 1]) return NULL;
+		else if (comps[i] > comps[g->count - i - 1]) res[i] = 1;
+		else res[i] = 0;
+	}
+	return res;
 }
