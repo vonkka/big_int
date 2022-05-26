@@ -473,13 +473,53 @@ int* scc_1dfs(graph* g) {
 	return comps;
 }
 
+void tarjan_step(graph* g, que** stack, int** comps, int** low_link, int** nodes_ind, int* ind, int cur) {
+	(*low_link)[cur] = *ind;
+	(*nodes_ind)[cur] = *ind;
+	++(*ind);
+	q_tohead(stack, cur);
+	grph_node* adj = g->adj_list[cur].head;
+	while (adj) {
+		if ((*nodes_ind)[adj->num] == -1) {
+			tarjan_step(g, stack, comps, low_link, nodes_ind, ind, adj->num);
+			(*low_link)[cur] = min((*low_link)[cur], (*low_link)[adj->num]);
+		}
+		else if (elem_in_q(*stack, adj->num)) (*low_link)[cur] = min((*low_link)[cur], (*nodes_ind)[adj->num]);
+		adj = adj->next;
+	}
+	if ((*nodes_ind)[cur] == (*low_link)[cur]) {
+		while ((*stack)->num != cur) {
+			(*comps)[(*stack)->num] = (*nodes_ind)[cur];
+			q_pop(stack);
+		}
+		(*comps)[(*stack)->num] = (*nodes_ind)[cur];
+		q_pop(stack);
+	}
+	return;
+}
+
+int* tarjan_scc(graph* g) {
+	int* comps = (int*)malloc(sizeof(g->count));
+	if (g) {
+		int ind = 0;
+		int* nodes_ind = (int*)malloc(sizeof(g->count));
+		int* low_link = (int*)malloc(sizeof(g->count));
+		for (int i = 0; i < g->count; ++i) nodes_ind[i] = -1;
+		que* stack = NULL;
+		for (int i = 0; i < g->count; ++i) {
+			if (nodes_ind[i] == -1) tarjan_step(g, &stack, &comps, &low_link, &nodes_ind, &ind, i);
+		}
+		q_free(stack);
+	}
+	return comps;
+}
+
 graph* sat_gr_create(char* str, int size) {
 	graph* g = graph_create(size);
 	g->count = size;
+	int temp = 0, num1 = -1, num2 = -1;
 	bool br = 0, neg = 0;
 	char prev = NULL;
-	int temp = 0;
-	int num1 = -1, num2 = -1;
 	while (*str != '\n') {
 		if (isdigit(*str)) {
 			if (prev == 'n') {
@@ -512,7 +552,7 @@ graph* sat_gr_create(char* str, int size) {
 				else return NULL;
 			}
 			else if (*str == '!') {
-				if (prev == '(' || prev == '|') neg = 1;
+				if ((prev == '(' || prev == '|') && num2 == -1) neg = 1;
 				else return NULL;
 			}
 			else if (*str == 'n') {
@@ -524,23 +564,27 @@ graph* sat_gr_create(char* str, int size) {
 			else if (*str == '&') {
 				if (!(prev == ')' || prev == ' ')) return NULL;
 			}
-			else if (*str == ' ');
+			else if (*str == ' ') continue;
 			else return NULL;
 			prev = *str;
 			++str;
 		}
 	}
+	if (!prev) return NULL;
 	return g;
 }
 
 int* sat2(char* str, int var) {
 	graph* g = sat_gr_create(str, var * 2);
-	int* res = (int*)malloc(sizeof(var));
-	int* comps = scc_2dfs(g);
-	for (int i = 0; i < var; ++i) {
-		if (comps[i] == comps[g->count - i - 1]) return NULL;
-		else if (comps[i] > comps[g->count - i - 1]) res[i] = 1;
-		else res[i] = 0;
+	if (g) {
+		int* res = (int*)malloc(sizeof(var));
+		int* comps = scc_2dfs(g);
+		for (int i = 0; i < var; ++i) {
+			if (comps[i] == comps[g->count - i - 1]) return NULL;
+			else if (comps[i] > comps[g->count - i - 1]) res[i] = 1;
+			else res[i] = 0;
+		}
+		return res;
 	}
-	return res;
+	return NULL;
 }
