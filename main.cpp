@@ -82,7 +82,7 @@ int main()
 
 // Topology sort
 
-   while (true) {
+       while (true) {
         cout << "Enter the graph size: ";
         int size;
         cin >> size;
@@ -96,20 +96,65 @@ int main()
         }
         graph_print(check_gr);
 
-        que* q = topology_sort_dfs(check_gr);
-        if (q) {
-                cout << '\n' << "Sorted list: ";
-                while (q->next) {
-                    que* temp = q;
-                    cout << q->num << ", ";
-                    q = q->next;
-                    free(temp);
+        int* comps = scc_2dfs(check_gr);
+        if (comps) {
+            cout << "\nStrongly connected components (2dfs):\n";
+            bool check = 0;
+            for (int n = 0; n < check_gr->count; ++n) {
+                for (int i = 0; i < check_gr->count; ++i) {
+                    if (comps[i] == n) {
+                        cout << i << ' ';
+                        check = 1;
+                    }
                 }
-                cout << q->num << '\n';
-                cout << '\n';
+                if (check) cout << '\n';
+                check = 0;  
             }
-        else cout << '\n' << "There is cycle" << '\n' << '\n';
-        q_free(q);
+        }
+        else {
+            cout << "Incorrect input\n";
+            break;
+        }
+
+        comps = scc_1dfs(check_gr);
+        if (comps) {
+            cout << "\nStrongly connected components (1dfs):\n";
+            bool check = 0;
+            for (int n = 0; n < check_gr->count; ++n) {
+                for (int i = 0; i < check_gr->count; ++i) {
+                    if (comps[i] == n) {
+                        cout << i << ' ';
+                        check = 1;
+                    }
+                }
+                if (check) cout << '\n';
+                check = 0;
+            }
+        }
+        else {
+            cout << "Incorrect input\n";
+            break;
+        }
+
+        comps = tarjan_scc(check_gr);
+        if (comps) {
+            cout << "\nStrongly connected components (tarjan):\n";
+            bool check = 0;
+            for (int n = 0; n < check_gr->count; ++n) {
+                for (int i = 0; i < check_gr->count; ++i) {
+                    if (comps[i] == n) {
+                        cout << i << ' ';
+                        check = 1;
+                    }
+                }
+                if (check) cout << '\n';
+                check = 0;
+            }
+        }
+        else {
+            cout << "Incorrect input\n";
+            break;
+        }
     }
 
 
